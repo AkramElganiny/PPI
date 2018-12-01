@@ -24,14 +24,20 @@ module control_word_reg (in , out, en);
 
 endmodule
 
+module control_word_reg2 (in , out, en);
+
+	input [7:0]in;	output [7:0]out;	input wire en;
+
+	assign out = (en) ? in : out;
+
+endmodule
+
 module control_word_reg_tb ();
 
-	reg [7:0]in;
-	wire [0:2]out;
-	reg en;
+	reg [7:0]in;	wire [7:0]out;	reg en;
 
-
-	control_word_reg b(in , out, en);
+	// control_word_reg b(in , out, en);
+	control_word_reg2 b(in , out, en);
 
 	initial begin
 
