@@ -1,3 +1,12 @@
+/**
+	# NOTES
+	
+	## TODO
+	--- BSR TB
+	--- Reset pin not working 
+**/
+
+
 module control_word_reg (in , out, en);
 
 	input [7:0]in;	output [2:0]out;	input wire en;
@@ -16,16 +25,6 @@ module control_word_reg (in , out, en);
 			end
 		end
 	end
-endmodule
-
-/** ** ** ** ** ** ** **/
-
-module control_word_reg2 (in , out, en);
-
-	input [7:0]in;	output [7:0]out;	input wire en;
-
-	assign out = (en) ? in : out;
-
 endmodule
 
 /** ** ** ** ** ** ** **/
@@ -135,7 +134,7 @@ endmodule
 
 /** ** ** ** ** ** ** **/
 
-module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR , databusOrBsr);
+module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR);
 
 	inout [7:0] PA;	inout [7:0] PB;	inout [7:0] PC;	inout [7:0] PD;	input wire CS,RST,RD,WR;	input wire [1:0] A; /* IC interface */
 
@@ -148,24 +147,22 @@ module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR , databusOrBsr);
 	assign PD_mode = (~RD) ? 1'b1 : (~WR) ? 1'b0 : 1'b0; /* Port D enable as read or write*/
 
 	output wire [2:0] ctrl_word_reg_out; /* carry control word for port mode select */
-	// output wire [7:0] ctrl_word_reg_out; 
 	output wire ctrl_word_reg_enable; /* Enable control word reg when A0 = 1 A1 = 1 For control */
 	assign ctrl_word_reg_enable = (A[0] && A[1]);
 
 	
 	port8 PortA(PA,databus		,ctrl_word_reg_out[0]  	,port_enable[0]);
 	port8 PortB(PB,databus		,ctrl_word_reg_out[1]  	,port_enable[1]);
-	port8 portC(PC,databus	,ctrl_word_reg_out[2]  	,port_enable[2]);
+	port8 portC(PC,databus		,ctrl_word_reg_out[2]  	,port_enable[2]);
 	port8 portD(PD,databus		,PD_mode  				,port_enable[3]);
 	
 	decoder3to8 BSR_Decoder(PD[3:1],BSR_Out,PD[0]); /* setting or reseting port c pins */
 
 	control_word_reg ctrl_word_reg (PD  , ctrl_word_reg_out, ctrl_word_reg_enable);
-	// control_word_reg2 ctrl_word_reg (PD  , ctrl_word_reg_out, ctrl_word_reg_enable);
 
 	control_unit ctrl(CS,RD,WR,A[0],A[1],port_enable, PD[7]);
 
-	//assign ctrl_word_reg_out = (~RST) ? 3'b0 : ctrl_word_reg_out; /* a7aaaaaaaaaaaaaaaa */
+	//assign ctrl_word_reg_out = (~RST) ? 3'b0 : ctrl_word_reg_out;
 
 endmodule
 
@@ -178,76 +175,72 @@ module top_module_tb();
 	wire [7:0] PA;	wire [7:0] PB;	wire [7:0] PC;	wire [7:0] PD;
 	reg cs,rd,wr,rst; 	reg [1:0]a;
 
-	assign PA =(conected)	?	DeviceA	:8'bzzzzzzzz;
-	assign PB =(conected)	?	DeviceB	:8'bzzzzzzzz;
-	assign PC =(conected)	?	DeviceC	:8'bzzzzzzzz;
-	assign PD =(~conected)	?	DeviceD	:8'bzzzzzzzz;
+	assign PA = (~rd && wr) ? DeviceA : 8'bzzzzzzzz;
+	assign PB = (~rd && wr) ? DeviceB : 8'bzzzzzzzz;
+	assign PC = (~rd && wr) ? DeviceC : 8'bzzzzzzzz;
+	assign PD = (~wr && rd) ? DeviceD : 8'bzzzzzzzz;
 
-	// assign PA = DeviceA;
-	// assign PB = DeviceB;
-	// assign PD = DeviceD;
-	// assign PC = DeviceC;
-
-
-
-	reg conected;
 	wire [7:0] temp;
 
-	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr , temp);
+	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr);
 
 	initial begin
 	
-		conected <= 1'b1;
 		cs = 1;		rd = 1;		wr = 1;		rst = 1;
 		a[0] = 1'bz;
 		a[1] = 1'bz;
 		
-		$monitor(" DevA %b DevB %b DevC %b DevD %b | PA %b PB %b PC %b PD %b a0 %b a1 %b| temp %b | connected %b",DeviceA,DeviceB,DeviceC,DeviceD,PA,PB,PC,PD,a[0],a[1],temp,conected);
+		$monitor("rd %b wr %b ||| a0 %b a1 %b |||PD %b PA %b PB %b PC %b",rd,wr,a[0],a[1],PD,PA,PB,PC);
 
+
+		$display("********************WRITE*************************");
 		#5
-		conected <= 1'b0;
 		cs <= 0;
 		a[0] <= 1;
 		a[1] <= 1;
 		DeviceD <= 8'b1000_0000;
 		wr <= 0;
-		
-		#5
-		wr <= 1;
+		rd <= 1;
 
 		#5
 		a[0] <= 0;
 		a[1] <= 0;
 		DeviceD <= 8'b0101_0101;
 		wr <= 0;
+		rd <= 1;
 
 		#5
 		a[0] <= 1;
 		a[1] <= 0;
 		DeviceD <= 8'b1001_1001;
 		wr <= 0;
+		rd <= 1;
 
 		#5
 		a[0] <= 0;
 		a[1] <= 1;
 		DeviceD <= 8'b1111_1001;
 		wr <= 0;
+		rd <= 1;
 
 		#5
-		conected <= 1'b0;
+		$display("********************READ*************************");
+		
+		#5
 		a[0] <= 1;
 		a[1] <= 1;
 		DeviceD <= 8'b1001_1011;
 		wr <= 0;
+		rd <= 1;
 
 		#5
-		conected <= 1'b1;
 		a[0] <= 0;
 		a[1] <= 0;
 		DeviceA <= 8'b1000_1000;
 		DeviceB <= 8'b1001_1001;
 		DeviceC <= 8'b1011_1101;
 		rd <= 0;
+		wr <= 1;
 
 		#5
 		a[0] <= 1;
@@ -256,6 +249,7 @@ module top_module_tb();
 		DeviceB <= 8'b1001_1001;
 		DeviceC <= 8'b1011_1101;
 		rd <= 0;
+		wr <= 1;
 
 		#5
 		a[0] <= 0;
@@ -264,6 +258,18 @@ module top_module_tb();
 		DeviceB <= 8'b1001_1001;
 		DeviceC <= 8'b1011_1101;
 		rd <= 0;
+		wr <= 1;
+
+		#5
+		$display("**********************BSR***********************");
+
+		#5
+		a[0] <= 1;
+		a[1] <= 1;
+		DeviceD <= 8'b0xxx_0001;
+		wr <= 0;
+		rd <= 1;
+
 
 	end
 
