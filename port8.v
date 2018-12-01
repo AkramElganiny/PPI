@@ -34,8 +34,8 @@ module port8_tb ();
 	reg mode , enable;
 	reg [0:7]a;
 
-	assign port =(~enable)? 8'bzzzzzzzz:(~mode)?a:8'bzzzzzzzz;
-	assign databus = (~enable)? 8'bzzzzzzzz : (mode)?a : 8'bzzzzzzzz;
+	assign port =(~mode)?a:8'bzzzzzzzz;
+	assign databus =  (mode)?a : 8'bzzzzzzzz;
 	
 
 

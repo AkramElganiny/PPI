@@ -1,7 +1,7 @@
 module control_word_reg (in , out, en);
 
-	input [0:7]in;
-	output [0:7]out;
+	input [7:0]in;
+	output [0:2]out;
 	input wire en;
 
 	reg [0:2] word;
@@ -10,7 +10,7 @@ module control_word_reg (in , out, en);
 
 	always @(in,en) begin
 		if(en) begin
-			 
+			
 			if(in[7]) begin
 				word[0] <= in[4];
 				word[1] <= in[1];
@@ -20,6 +20,26 @@ module control_word_reg (in , out, en);
 			end
 
 		end
+	end
+
+endmodule
+
+module control_word_reg_tb ();
+
+	reg [7:0]in;
+	wire [0:2]out;
+	reg en;
+
+
+	control_word_reg b(in , out, en);
+
+	initial begin
+
+		$monitor("en %b in %b out %b",en,in,out);
+
+		in = 8'b1000_0000;
+		en = 1;
+
 	end
 
 endmodule
