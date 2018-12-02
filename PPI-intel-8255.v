@@ -159,7 +159,7 @@ module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR);
 	
 	port8 PortA(PA,databus		,ctrl_word_reg_out[0]  	,port_enable[0]);
 	port8 PortB(PB,databus		,ctrl_word_reg_out[1]  	,port_enable[1]);
-	port8 portC(PC,databusOrBsr	,ctrl_word_reg_out[2]  	,port_enable[2]);
+	port8 portC(PC,databus	,ctrl_word_reg_out[2]  	,port_enable[2]);
 	port8 portD(PD,databus		,PD_mode  				,port_enable[3]);
 	
 	decoder3to8 BSR_Decoder(PD[3:1],BSR_Out,PD[0]); /* setting or reseting port c pins */
