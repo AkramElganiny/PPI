@@ -7,30 +7,35 @@
 **/
 
 
-module control_word_reg (in , out, en);
+module control_word_reg (in , out, en, RESET);
 
-	input [7:0]in;	output [3:0]out;	input wire en;
+	input [7:0]in; input RESET;	output [3:0]out;	input wire en;
 
-	reg [3:0] word;
-	assign out = word;
+	// reg [3:0] word;
+	// assign out = word;
 
-	always @(in,en) begin
-		if(en) begin
-			if(in[7]) begin
-				word[0] <= ~in[4];
-				word[1] <= ~in[1];
-				word[2] <= ~in[0] | ~in[3];
-				word[3] <= in[7];
-			end else begin 
-				word[2] <= 1'b1;
-				word[0] <= 1'b0;
-				word[1] <= 1'b0;
+	assign out[0] = (RESET==0)? 1'b0 : (in[7]==1 && en==1) ? ~in[4] :(in[7]==0 && en==1) ? 1'b0  : 1'b0;
+	assign out[1] = (RESET==0)? 1'b0 : (in[7]==1 && en==1) ? ~in[1] :(in[7]==0 && en==1) ? 1'b0  : 1'b0;
+	assign out[2] = (RESET==0)? 1'b0 : (in[7]==1 && en==1) ? ~in[0] :(in[7]==0 && en==1) ? 1'b1  : 1'b0;
+	assign out[3] = in[7];
+
+	// always @(in,en) begin
+	// 	if(en) begin
+	// 		if(in[7]) begin
+	// 			word[0] <= ~in[4];
+	// 			word[1] <= ~in[1];
+	// 			word[2] <= ~in[0] | ~in[3];
+	// 			word[3] <= in[7];
+	// 		end else begin 
+	// 			word[2] <= 1'b1;
+	// 			word[0] <= 1'b0;
+	// 			word[1] <= 1'b0;
 
 
-				word[3] <= in[7];
-			end
-		end
-	end
+	// 			word[3] <= in[7];
+	// 		end
+	// 	end
+	// end
 endmodule
 
 /** ** ** ** ** ** ** **/
@@ -42,7 +47,7 @@ module control_unit (CS,RD,WR,A0,A1,control, ic_mode);
 	reg [3:0]control_reg;
 	assign control = control_reg;
 
-	always @(CS,RD,WR,A0,A1) begin
+	always @(*) begin
 		
 		if(~CS)begin 
 			if(~A0 && ~A1) begin // p||t A
@@ -138,37 +143,55 @@ module decoder3to8(Data_in,Data_out,SetReset);
 	assign Data_out[7] = (Data_in == 3'b111)? SetReset : Data_out[7];
 
 
+// 	assign Data_out[0] = (Data_in == 3'b000)? SetReset : 1'bz;
+// 	assign Data_out[1] = (Data_in == 3'b001)? SetReset : 1'bz;
+// 	assign Data_out[2] = (Data_in == 3'b010)? SetReset : 1'bz;
+// 	assign Data_out[3] = (Data_in == 3'b011)? SetReset : 1'bz;
+// 	assign Data_out[4] = (Data_in == 3'b100)? SetReset : 1'bz;
+// 	assign Data_out[5] = (Data_in == 3'b101)? SetReset : 1'bz;
+// 	assign Data_out[6] = (Data_in == 3'b110)? SetReset : 1'bz;
+// 	assign Data_out[7] = (Data_in == 3'b111)? SetReset : 1'bz;
 endmodule
 
-module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR);
+module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR,ctrl_word_reg_out,word,databus,databusOrBsr);
 
 	inout [7:0] PA;	inout [7:0] PB;	inout [7:0] PC;	inout [7:0] PD;	input wire CS,RST,RD,WR;	input wire [1:0] A; /* IC interface */
 
-	wire [7:0] databus; /* internal bus between Port A,B,C,D in mode 0*/
+
+	output wire [7:0] databus; /* internal bus between Port A,B,C,D in mode 0*/
 	wire [7:0] BSR_Out; /* value of port c in BSR mode */
-	wire [7:0] databusOrBsr; /* carry port c data bus for each mode BSR or Mode 0 */
-	assign databusOrBsr = ((ctrl_word_reg_out[3]) && A[0] && A[1]) ? BSR_Out : databus  ;
-	
-	output wire [3:0] port_enable; /* each bit connected to enable pin of each port A,B,C */ 
-	assign PD_mode = (~RD) ? 1'b1 : (~WR) ? 1'b0 : 1'b0; /* Port D enable as read or write*/
+	output wire [7:0] databusOrBsr; /* carry port c data bus for each mode BSR or Mode 0 */
+	assign databusOrBsr = ((ctrl_word_reg_out[3]==0) && A[0] && A[1]) ? BSR_Out : databus; /* Mux between BSR_OUT & Databus to portc */
 
-	output wire [3:0] ctrl_word_reg_out; /* carry control word for port mode select */
-	output wire ctrl_word_reg_enable; /* Enable control word reg when A0 = 1 A1 = 1 For control */
-	assign ctrl_word_reg_enable = (A[0] && A[1]);
-
-	
-	port8 PortA(PA,databus		,ctrl_word_reg_out[0]  	,port_enable[0]);
-	port8 PortB(PB,databus		,ctrl_word_reg_out[1]  	,port_enable[1]);
-	port8 portC(PC,databus	,ctrl_word_reg_out[2]  	,port_enable[2]);
-	port8 portD(PD,databus		,PD_mode  				,port_enable[3]);
-	
 	decoder3to8 BSR_Decoder(PD[3:1],BSR_Out,PD[0]); /* setting or reseting port c pins */
 
-	control_word_reg ctrl_word_reg (PD  , ctrl_word_reg_out, ctrl_word_reg_enable);
-
+	assign PD_mode = (~RD) ? 1'b1 : (~WR) ? 1'b0 : 1'b0; /* Port D enable as read or write*/
+	wire [3:0] port_enable; /* each bit connected to enable pin of each port A,B,C */
 	control_unit ctrl(CS,RD,WR,A[0],A[1],port_enable, PD[7]);
 
-	//assign ctrl_word_reg_out = (~RST) ? 3'b0 : ctrl_word_reg_out;
+	wire ctrl_word_reg_enable; /* Enable control word reg when A0 = 1 A1 = 1 For control */
+	output wire [3:0] ctrl_word_reg_out; /* carry control word for port mode select */
+
+	output reg [7:0] word;
+	assign ctrl_word_reg_enable = (A[0] && A[1]);
+	control_word_reg ctrl_word_reg (word  , ctrl_word_reg_out, 1'b1, RST);
+
+	port8 PortA(PA,databus			,ctrl_word_reg_out[0]  	,port_enable[0]);
+	port8 PortB(PB,databus			,ctrl_word_reg_out[1]  	,port_enable[1]);
+	port8 portC(PC,databusOrBsr		,ctrl_word_reg_out[2]  	,port_enable[2]);
+	port8 portD(PD,databus			,PD_mode  				,port_enable[3]);
+	
+	
+
+
+	always @(*) begin
+		if(A[0] & A[1]) begin
+			word <= PD;
+		end else begin
+			word <= word;
+		end
+	end
+
 
 endmodule
 
@@ -177,27 +200,28 @@ endmodule
 module top_module_tb();
 
 	reg [7:0] DeviceA;	reg [7:0] DeviceB;	reg [7:0] DeviceC;	reg [7:0] DeviceD;
-
 	wire [7:0] PA;	wire [7:0] PB;	wire [7:0] PC;	wire [7:0] PD;
 	reg cs,rd,wr,rst; 	reg [1:0]a;
+
+	wire [3:0]ctrl_word_reg_out;
+	wire [7:0]word;
+	wire [7:0]databusOrBsr;
+	wire [7:0]databus;
+
+	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr,ctrl_word_reg_out,word,databus,databusOrBsr);
 
 	assign PA = (~rd && wr) ? DeviceA : 8'bzzzzzzzz;
 	assign PB = (~rd && wr) ? DeviceB : 8'bzzzzzzzz;
 	assign PC = (~rd && wr) ? DeviceC : 8'bzzzzzzzz;
 	assign PD = (~wr && rd) ? DeviceD : 8'bzzzzzzzz;
 
-	wire [7:0] temp;
 
-	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr);
 
 	initial begin
 	
-		cs = 1;		rd = 1;		wr = 1;		rst = 1;
-		a[0] = 1'bz;
-		a[1] = 1'bz;
+		cs = 1;		rd = 1;		wr = 1;		rst = 1;	a[0] = 1'b0;	a[1] = 1'b0;
 		
-		$monitor("rd %b wr %b ||| a0 %b a1 %b |||PD %b PA %b PB %b PC %b ",rd,wr,a[0],a[1],PD,PA,PB,PC);
-
+		$monitor("rd %b wr %b ||| a0 %b a1 %b |||PD %b PA %b PB %b PC %b ctrl_word_reg_out %b word %b databus %b databusOrBsr %b",rd,wr,a[0],a[1],PD,PA,PB,PC,ctrl_word_reg_out,word,databus,databusOrBsr);
 
 		$display("********************WRITE*************************");
 		#5
