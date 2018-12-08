@@ -262,19 +262,12 @@ module top_module_tb();
 		cs <= 0;
 		a[0] <= 1;
 		a[1] <= 1;
-		DeviceD <= 8'b0000_0000;
+		DeviceD <= 8'b0000_0001;
 		wr <= 0;
 		rd <= 1;
 
 		#5
 		cs <= 0;
-		a[0] <= 0;
-		a[1] <= 0;
-		DeviceD <= 8'b0000_1111;
-		wr <= 0;
-		rd <= 1;
-
-		#5
 		a[0] <= 1;
 		a[1] <= 1;
 		DeviceD <= 8'b0000_1111;
@@ -284,7 +277,14 @@ module top_module_tb();
 		#5
 		a[0] <= 1;
 		a[1] <= 1;
-		DeviceD <= 8'b0xxx_1111;
+		DeviceD <= 8'b0000_1011;
+		wr <= 0;
+		rd <= 1;
+
+		#5
+		a[0] <= 1;
+		a[1] <= 1;
+		DeviceD <= 8'b0xxx_1110;
 		wr <= 0;
 		rd <= 1;
 
