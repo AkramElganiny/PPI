@@ -127,6 +127,63 @@ endmodule
 
 /** ** ** ** ** ** ** **/
 
+module portC8 (port , databus, mode , enable, ic_mode ,A);
+
+	inout [7:0]port;	inout [7:0]databus;		input mode , enable, ic_mode ,A;
+	wire en1 , en2;
+
+	assign en1 = enable & (~mode) & ic_mode;
+	assign en2 = enable & (mode) & ic_mode;
+
+	Tri_State_Buffer t2(port , databus , en1);
+	Tri_State_Buffer t1(databus , port , en2);
+
+	/* ** ** ** BSR MODE ** ** ** */ 
+	assign port[0] = (databus[3:1] == 3'b000 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[0]  : 1'bz;
+	assign port[1] = (databus[3:1] == 3'b001 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[1]  : 1'bz;
+	assign port[2] = (databus[3:1] == 3'b010 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[2]  : 1'bz;
+	assign port[3] = (databus[3:1] == 3'b011 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[3]  : 1'bz;
+	assign port[4] = (databus[3:1] == 3'b100 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[4]  : 1'bz;
+	assign port[5] = (databus[3:1] == 3'b101 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[5]  : 1'bz;
+	assign port[6] = (databus[3:1] == 3'b110 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[6]  : 1'bz;
+	assign port[7] = (databus[3:1] == 3'b111 && ic_mode == 0 && A==1)? databus[0] : (ic_mode == 0) ? port[7]  : 1'bz;
+
+
+endmodule
+
+/** ** ** ** ** ** ** **/
+
+module portc (port , databus , mode , enable , BSR_mode);
+
+	inout [7:0] port;	inout [7:0] databus;	input mode , enable , en1 , en2 , BSR_mode ;
+	wire Data_in;
+	wire [7:0] Data_out;
+
+	assign Data_in = (BSR_mode) ? port[3:1] : 3'bzzz;
+
+	assign en1 = enable & (~mode);
+	assign en2 = enable & (mode);
+
+	assign Data_out[0] = (Data_in == 3'b000)? databus[0] : 1'bz;
+	assign Data_out[1] = (Data_in == 3'b001)? databus[0] : 1'bz;
+	assign Data_out[2] = (Data_in == 3'b010)? databus[0] : 1'bz;
+	assign Data_out[3] = (Data_in == 3'b011)? databus[0] : 1'bz;
+	assign Data_out[4] = (Data_in == 3'b100)? databus[0] : 1'bz;
+	assign Data_out[5] = (Data_in == 3'b101)? databus[0] : 1'bz;
+	assign Data_out[6] = (Data_in == 3'b110)? databus[0] : 1'bz;
+	assign Data_out[7] = (Data_in == 3'b111)? databus[0] : 1'bz;
+
+	
+
+	Tri_State_Buffer t2(port , databus , en1);
+	Tri_State_Buffer t1(databus , port , en2);
+
+	
+
+endmodule
+
+/** ** ** ** ** ** ** **/
+
 module decoder3to8(Data_in,Data_out,SetReset);
 
     input [2:0] Data_in;
@@ -153,15 +210,15 @@ module decoder3to8(Data_in,Data_out,SetReset);
 // 	assign Data_out[7] = (Data_in == 3'b111)? SetReset : 1'bz;
 endmodule
 
-module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR,ctrl_word_reg_out,word,databus,databusOrBsr);
+module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR,ctrl_word_reg_out,word,databus);
 
 	inout [7:0] PA;	inout [7:0] PB;	inout [7:0] PC;	inout [7:0] PD;	input wire CS,RST,RD,WR;	input wire [1:0] A; /* IC interface */
 
 
 	output wire [7:0] databus; /* internal bus between Port A,B,C,D in mode 0*/
 	wire [7:0] BSR_Out; /* value of port c in BSR mode */
-	output wire [7:0] databusOrBsr; /* carry port c data bus for each mode BSR or Mode 0 */
-	assign databusOrBsr = ((ctrl_word_reg_out[3]==0) && A[0] && A[1]) ? BSR_Out : databus; /* Mux between BSR_OUT & Databus to portc */
+	// output wire [7:0] databusOrBsr; /* carry port c data bus for each mode BSR or Mode 0 */
+	// assign databusOrBsr = ((ctrl_word_reg_out[3]==0) && A[0] && A[1]) ? BSR_Out : databus; /* Mux between BSR_OUT & Databus to portc */
 
 	decoder3to8 BSR_Decoder(PD[3:1],BSR_Out,PD[0]); /* setting or reseting port c pins */
 
@@ -178,7 +235,8 @@ module Top_module (PA,PB,PC,PD,CS,A,RST,RD,WR,ctrl_word_reg_out,word,databus,dat
 
 	port8 PortA(PA,databus			,ctrl_word_reg_out[0]  	,port_enable[0]);
 	port8 PortB(PB,databus			,ctrl_word_reg_out[1]  	,port_enable[1]);
-	port8 portC(PC,databusOrBsr		,ctrl_word_reg_out[2]  	,port_enable[2]);
+	// port8 portC(PC,databusOrBsr		,ctrl_word_reg_out[2]  	,port_enable[2]);
+	portC8 portC(PC , databus, ctrl_word_reg_out[2] , port_enable[2], ctrl_word_reg_out[3],ctrl_word_reg_enable);
 	port8 portD(PD,databus			,PD_mode  				,port_enable[3]);
 	
 	
@@ -205,10 +263,9 @@ module top_module_tb();
 
 	wire [3:0]ctrl_word_reg_out;
 	wire [7:0]word;
-	wire [7:0]databusOrBsr;
 	wire [7:0]databus;
 
-	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr,ctrl_word_reg_out,word,databus,databusOrBsr);
+	Top_module tpmd (PA,PB,PC,PD,cs,a,rst,rd,wr,ctrl_word_reg_out,word,databus);
 
 	assign PA = (~rd && wr) ? DeviceA : 8'bzzzzzzzz;
 	assign PB = (~rd && wr) ? DeviceB : 8'bzzzzzzzz;
@@ -221,7 +278,7 @@ module top_module_tb();
 	
 		cs = 1;		rd = 1;		wr = 1;		rst = 1;	a[0] = 1'b0;	a[1] = 1'b0;
 		
-		$monitor("rd %b wr %b ||| a0 %b a1 %b |||PD %b PA %b PB %b PC %b ctrl_word_reg_out %b word %b databus %b databusOrBsr %b",rd,wr,a[0],a[1],PD,PA,PB,PC,ctrl_word_reg_out,word,databus,databusOrBsr);
+		$monitor("rd %b wr %b ||| a0 %b a1 %b |||PD %b PA %b PB %b PC %b ctrl_word_reg_out %b word %b databus %b ",rd,wr,a[0],a[1],PD,PA,PB,PC,ctrl_word_reg_out,word,databus);
 
 		$display("********************WRITE*************************");
 		#5
